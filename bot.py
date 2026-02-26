@@ -70,7 +70,7 @@ def delete_skill_prompt(user_id):
         delete_message(chat_id, message_id)
 
 def has_skills(user_id):
-    cursor.execute("SELECT COUNT(*) FROM skills WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT COUNT(*) FROM skills WHERE user_id=%s", (user_id,))
     return cursor.fetchone()[0] > 0
 
 def plural_skills(n):
@@ -174,7 +174,7 @@ def save_skill(message):
         new_name = message.text
         skill_id = state["skill_id"]
 
-        cursor.execute("UPDATE skills SET name=? WHERE id=?", (new_name, skill_id))
+        cursor.execute("UPDATE skills SET name=%s WHERE id=%s", (new_name, skill_id))
         
 
         bot.delete_message(message.chat.id, message.message_id)
@@ -195,12 +195,12 @@ def save_skill(message):
         amount = int(message.text)
         skill_id = state["skill_id"]
 
-        cursor.execute("SELECT xp FROM skills WHERE id=?", (skill_id,))
+        cursor.execute("SELECT xp FROM skills WHERE id=%s", (skill_id,))
         current_xp = cursor.fetchone()[0]
 
         new_xp = max(0, current_xp - amount)
 
-        cursor.execute("UPDATE skills SET xp=? WHERE id=?", (new_xp, skill_id))
+        cursor.execute("UPDATE skills SET xp=%s WHERE id=%s", (new_xp, skill_id))
         
 
         bot.delete_message(message.chat.id, message.message_id)
@@ -266,7 +266,7 @@ VALUES (%s, %s, 0)
 def list_skills(message):
     user_id = message.from_user.id
 
-    cursor.execute("SELECT name, xp FROM skills WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT name, xp FROM skills WHERE user_id=%s", (user_id,))
     skills = cursor.fetchall()
 
     if not skills:
@@ -287,7 +287,7 @@ def list_skills(message):
 def addxp(message):
     user_id = message.from_user.id
 
-    cursor.execute("SELECT id, name, xp FROM skills WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT id, name, xp FROM skills WHERE user_id=%s", (user_id,))
     skills = cursor.fetchall()
 
     if not skills:
@@ -313,7 +313,7 @@ def skill_menu(call):
     delete_last_message(user_id)
 
     skill_id = int(call.data.split("_")[1])
-    cursor.execute("SELECT name, xp FROM skills WHERE id=?", (skill_id,))
+    cursor.execute("SELECT name, xp FROM skills WHERE id=%s", (skill_id,))
     skill = cursor.fetchone()
 
     if not skill:
@@ -346,11 +346,11 @@ def add_xp(call):
         bot.answer_callback_query(call.id, "Подожди 2 минуты.⏳", show_alert=True)
         return
 
-    cursor.execute("SELECT xp, name FROM skills WHERE id=?", (skill_id,))
+    cursor.execute("SELECT xp, name FROM skills WHERE id=%s", (skill_id,))
     old_xp, skill_name = cursor.fetchone()
 
     new_xp = old_xp + xp
-    cursor.execute("UPDATE skills SET xp=? WHERE id=?", (new_xp, skill_id))
+    cursor.execute("UPDATE skills SET xp=%s WHERE id=%s", (new_xp, skill_id))
     
 
     bot.send_message(
@@ -371,7 +371,7 @@ def delete_experience(message):
         bot.send_message(message.chat.id, "Сначала нажми первую команду /start.")
         return
 
-    cursor.execute("SELECT id, name FROM skills WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT id, name FROM skills WHERE user_id=%s", (user_id,))
     skills = cursor.fetchall()
 
     markup = InlineKeyboardMarkup(row_width=2)
@@ -458,7 +458,7 @@ def rename_skill(message):
         bot.send_message(message.chat.id, "Сначала нажми первую команду /start.")
         return
 
-    cursor.execute("SELECT id, name FROM skills WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT id, name FROM skills WHERE user_id=%s", (user_id,))
     skills = cursor.fetchall()
 
     markup = InlineKeyboardMarkup()
@@ -507,7 +507,7 @@ def delete_mode(call):
     user_id = call.from_user.id
     delete_last_message(user_id)
 
-    cursor.execute("SELECT id, name FROM skills WHERE user_id=?", (user_id,))
+    cursor.execute("SELECT id, name FROM skills WHERE user_id=%s", (user_id,))
     skills = cursor.fetchall()
 
     markup = InlineKeyboardMarkup()
@@ -530,13 +530,13 @@ def confirm_delete(call):
 
     skill_id = int(call.data.split("_")[1])
 
-    cursor.execute("SELECT xp FROM skills WHERE id=?", (skill_id,))
+    cursor.execute("SELECT xp FROM skills WHERE id=%s", (skill_id,))
     xp_value = cursor.fetchone()[0]
 
-    cursor.execute("UPDATE users SET saved_xp = saved_xp + ? WHERE user_id=?",
+    cursor.execute("UPDATE users SET saved_xp = saved_xp + %s WHERE user_id=%s",
                    (xp_value, user_id))
 
-    cursor.execute("DELETE FROM skills WHERE id=?", (skill_id,))
+    cursor.execute("DELETE FROM skills WHERE id=%s", (skill_id,))
     
 
     bot.send_message(call.message.chat.id, "Твой навык удален.")
