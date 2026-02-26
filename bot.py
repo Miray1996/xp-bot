@@ -404,14 +404,14 @@ def choose_skill_for_delete(call):
 @bot.message_handler(commands=['rating'])
 def rating(message):
     cursor.execute("""
-        SELECT users.username,
-        users.saved_xp + IFNULL(SUM(skills.xp),0) as total_xp
-        FROM users
-        LEFT JOIN skills ON skills.user_id = users.user_id
-        GROUP BY users.user_id
-        ORDER BY total_xp DESC
-        LIMIT 10
-    """)
+    SELECT users.username,
+           users.saved_xp + COALESCE(SUM(skills.xp), 0) as total_xp
+    FROM users
+    LEFT JOIN skills ON skills.user_id = users.user_id
+    GROUP BY users.user_id
+    ORDER BY total_xp DESC
+    LIMIT 10
+""")
     top = cursor.fetchall()
 
     if not top:
@@ -558,3 +558,4 @@ def add_mode(call):
 
 
 bot.infinity_polling()
+
