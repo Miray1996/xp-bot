@@ -1,21 +1,24 @@
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import sqlite3
 import time
-
 import os
+import psycopg2
+
 TOKEN = os.getenv("TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
 
 # ================= БАЗА =================
 
-conn = sqlite3.connect("xp.db", check_same_thread=False)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+conn.autocommit = True
 cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
+    user_id BIGINT PRIMARY KEY,
     username TEXT,
     saved_xp INTEGER DEFAULT 0
 )
@@ -23,14 +26,14 @@ CREATE TABLE IF NOT EXISTS users (
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS skills (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT,
     name TEXT,
     xp INTEGER DEFAULT 0
 )
 """)
 
-conn.commit()
+
 
 # ================= СОСТОЯНИЕ =================
 
@@ -172,7 +175,7 @@ def save_skill(message):
         skill_id = state["skill_id"]
 
         cursor.execute("UPDATE skills SET name=? WHERE id=?", (new_name, skill_id))
-        conn.commit()
+        
 
         bot.delete_message(message.chat.id, message.message_id)
         delete_skill_prompt(user_id)
@@ -198,7 +201,7 @@ def save_skill(message):
         new_xp = max(0, current_xp - amount)
 
         cursor.execute("UPDATE skills SET xp=? WHERE id=?", (new_xp, skill_id))
-        conn.commit()
+        
 
         bot.delete_message(message.chat.id, message.message_id)
         delete_skill_prompt(user_id)
@@ -209,12 +212,17 @@ def save_skill(message):
 
     # ---- Добавление нового навыка ----
     if "adding" in state:
-        cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)",
-                       (user_id, message.from_user.username))
+        cursor.execute("""
+INSERT INTO users (user_id, username)
+VALUES (%s, %s)
+ON CONFLICT (user_id) DO NOTHING
+""", (user_id, message.from_user.username))
 
-        cursor.execute("INSERT INTO skills (user_id, name, xp) VALUES (?, ?, 0)",
-                       (user_id, message.text))
-        conn.commit()
+        cursor.execute("""
+INSERT INTO skills (user_id, name, xp)
+VALUES (%s, %s, 0)
+""", (user_id, message.text))
+        
 
         bot.delete_message(message.chat.id, message.message_id)
         delete_skill_prompt(user_id)
@@ -224,12 +232,17 @@ def save_skill(message):
         return
 
     # ---- Создание при start ----
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)",
-                   (user_id, message.from_user.username))
+    cursor.execute("""
+INSERT INTO users (user_id, username)
+VALUES (%s, %s)
+ON CONFLICT (user_id) DO NOTHING
+""", (user_id, message.from_user.username))
 
-    cursor.execute("INSERT INTO skills (user_id, name, xp) VALUES (?, ?, 0)",
-                   (user_id, message.text))
-    conn.commit()
+    cursor.execute("""
+INSERT INTO skills (user_id, name, xp)
+VALUES (%s, %s, 0)
+""", (user_id, message.text))
+    
 
     bot.delete_message(message.chat.id, message.message_id)
     delete_skill_prompt(user_id)
@@ -338,7 +351,7 @@ def add_xp(call):
 
     new_xp = old_xp + xp
     cursor.execute("UPDATE skills SET xp=? WHERE id=?", (new_xp, skill_id))
-    conn.commit()
+    
 
     bot.send_message(
         call.message.chat.id,
@@ -524,7 +537,7 @@ def confirm_delete(call):
                    (xp_value, user_id))
 
     cursor.execute("DELETE FROM skills WHERE id=?", (skill_id,))
-    conn.commit()
+    
 
     bot.send_message(call.message.chat.id, "Твой навык удален.")
     bot.answer_callback_query(call.id)
@@ -542,5 +555,6 @@ def add_mode(call):
     bot.answer_callback_query(call.id)
 
 # ================= ЗАПУСК =================
+
 
 bot.infinity_polling()
